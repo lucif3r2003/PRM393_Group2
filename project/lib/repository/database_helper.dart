@@ -1,3 +1,5 @@
+import 'package:project/entity/order.dart';
+import 'package:project/entity/order_queue_item.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -51,39 +53,37 @@ class DatabaseHelper {
       )
     ''');
 
+    // ✅ SỬA TÊN BẢNG THÀNH DiningTables CHO ĐỒNG BỘ
     await db.execute('''
-      CREATE TABLE Tables (
+      CREATE TABLE DiningTables (
         TableID $idAuto,
         TableName $textType,
         Status $textType
       )
     ''');
 
-    
-
-// Bảng Products (Đã thêm trường Description để ghi công thức)
     await db.execute('''
       CREATE TABLE Products (
-        ProductID INTEGER PRIMARY KEY AUTOINCREMENT,
-        ProductName TEXT NOT NULL,
-        Category TEXT NOT NULL,
-        Price REAL NOT NULL,
+        ProductID $idAuto,
+        ProductName $textType,
+        Category $textType,
+        Price $realType,
         Description TEXT 
       )
     ''');
 
-    // Bảng Ingredients (Đơn thuần dùng để quản lý ghi chép tồn kho)
     await db.execute('''
       CREATE TABLE Ingredients (
-        IngredientID INTEGER PRIMARY KEY AUTOINCREMENT,
-        IngredientName TEXT NOT NULL,
-        StockQuantity REAL NOT NULL,
-        Unit TEXT NOT NULL
+        IngredientID $idAuto,
+        IngredientName $textType,
+        StockQuantity $realType,
+        Unit $textType
       )
     ''');
 
+    // ✅ SỬA TÊN BẢNG THÀNH MealOrders CHO ĐỒNG BỘ
     await db.execute('''
-      CREATE TABLE Orders (
+      CREATE TABLE MealOrders (
         OrderID $idAuto,
         TableID $intType,
         WaiterID $intType,
@@ -106,5 +106,63 @@ class DatabaseHelper {
         FOREIGN KEY (ProductID) REFERENCES Products (ProductID)
       )
     ''');
-}
+  } // ✅ ĐÂY LÀ DẤU NGOẶC KẾT THÚC CỦA HÀM _createDB. CÁC HÀM TRUY VẤN PHẢI NẰM DƯỚI NÓ!
+
+  // =========================================================================
+  // CÁC HÀM TRUY VẤN DỮ LIỆU (Đã được đưa ra ngoài hàm _createDB)
+  // =========================================================================
+
+  /// Lấy danh sách Đơn hàng theo Trạng thái (Pending, Preparing, Ready)
+  Future<List<OrderQueueItem>> getOrderQueueByStatus(String status) async {
+    final db = await instance.database;
+
+    final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
+      SELECT m.*, t.TableName 
+      FROM MealOrders m
+      JOIN DiningTables t ON m.TableID = t.TableID
+      WHERE m.Status = ?
+      ORDER BY m.CreatedAt ASC
+    ''', [status]);
+
+    List<OrderQueueItem> queueItems = [];
+
+    for (var orderMap in orderMaps) {
+      Order order = Order.fromMap(orderMap);
+      String tableName = orderMap['TableName'] as String;
+
+      final List<Map<String, dynamic>> detailMaps = await db.rawQuery('''
+        SELECT d.Quantity, d.Note, p.ProductName 
+        FROM OrderDetails d
+        JOIN Products p ON d.ProductID = p.ProductID
+        WHERE d.OrderID = ?
+      ''', [order.orderId]);
+
+      List<OrderDetailItem> details = detailMaps.map((d) {
+        return OrderDetailItem(
+          quantity: d['Quantity'] as int,
+          productName: d['ProductName'] as String,
+          note: d['Note'] as String?,
+        );
+      }).toList();
+
+      queueItems.add(OrderQueueItem(
+        order: order,
+        tableName: tableName,
+        details: details,
+      ));
+    }
+
+    return queueItems;
+  }
+
+  /// Cập nhật trạng thái của đơn hàng (Khi Bartender bấm nút)
+  Future<int> updateOrderStatus(int orderId, String newStatus) async {
+    final db = await instance.database;
+    return await db.update(
+      'MealOrders',
+      {'Status': newStatus},
+      where: 'OrderID = ?',
+      whereArgs: [orderId],
+    );
+  }
 }
