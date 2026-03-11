@@ -41,7 +41,27 @@ class DatabaseHelper {
     const realType = 'REAL NOT NULL';
     const intType = 'INTEGER NOT NULL';
 
-// 1. Bảng Products (Đã thêm trường Description để ghi công thức)
+    await db.execute('''
+      CREATE TABLE Users (
+        UserID $idAuto,
+        Username TEXT UNIQUE NOT NULL,
+        Password $textType,
+        FullName $textType,
+        Role $textType
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE Tables (
+        TableID $idAuto,
+        TableName $textType,
+        Status $textType
+      )
+    ''');
+
+    
+
+// Bảng Products (Đã thêm trường Description để ghi công thức)
     await db.execute('''
       CREATE TABLE Products (
         ProductID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,13 +72,38 @@ class DatabaseHelper {
       )
     ''');
 
-    // 2. Bảng Ingredients (Đơn thuần dùng để quản lý ghi chép tồn kho)
+    // Bảng Ingredients (Đơn thuần dùng để quản lý ghi chép tồn kho)
     await db.execute('''
       CREATE TABLE Ingredients (
         IngredientID INTEGER PRIMARY KEY AUTOINCREMENT,
         IngredientName TEXT NOT NULL,
         StockQuantity REAL NOT NULL,
         Unit TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE Orders (
+        OrderID $idAuto,
+        TableID $intType,
+        WaiterID $intType,
+        TotalAmount $realType,
+        Status $textType,
+        CreatedAt $textType,
+        FOREIGN KEY (TableID) REFERENCES DiningTables (TableID),
+        FOREIGN KEY (WaiterID) REFERENCES Users (UserID)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE OrderDetails (
+        OrderDetailID $idAuto,
+        OrderID $intType,
+        ProductID $intType,
+        Quantity $intType,
+        Note TEXT,
+        FOREIGN KEY (OrderID) REFERENCES MealOrders (OrderID) ON DELETE CASCADE,
+        FOREIGN KEY (ProductID) REFERENCES Products (ProductID)
       )
     ''');
 }
