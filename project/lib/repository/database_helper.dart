@@ -22,7 +22,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    await deleteDatabase(path); // xoa du lieu thi bo cai comment nay di
+    // await deleteDatabase(path); // xoa du lieu thi bo cai comment nay di
 
     // Mở database, nếu chưa có sẽ gọi hàm _createDB
     return await openDatabase(
