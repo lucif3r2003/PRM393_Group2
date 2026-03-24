@@ -235,4 +235,88 @@ class DatabaseHelper {
     ''');
   }
 // ---- Ket thuc phan 8 ----
+
+  // ========== USER MANAGEMENT METHODS ==========
+  /// Lấy tất cả users
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = await instance.database;
+    return await db.query('Users', orderBy: 'UserID');
+  }
+
+  /// Lấy user theo ID
+  Future<Map<String, dynamic>?> getUserById(int userId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'Users',
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  /// Thêm user mới
+  Future<int> insertUser(Map<String, dynamic> user) async {
+    final db = await instance.database;
+    return await db.insert('Users', user);
+  }
+
+  /// Cập nhật user (chỉ role có thể chỉnh sửa)
+  Future<int> updateUserRole(int userId, String newRole) async {
+    final db = await instance.database;
+    return await db.update(
+      'Users',
+      {'Role': newRole},
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  /// Xóa user
+  Future<int> deleteUser(int userId) async {
+    final db = await instance.database;
+    return await db.delete(
+      'Users',
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // ========== PRODUCT MANAGEMENT METHODS ==========
+  /// Thêm sản phẩm
+  Future<int> insertProduct(Map<String, dynamic> product) async {
+    final db = await instance.database;
+    return await db.insert('Products', product);
+  }
+
+  /// Lấy sản phẩm theo ID
+  Future<Map<String, dynamic>?> getProductById(int productId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'Products',
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  /// Cập nhật sản phẩm
+  Future<int> updateProduct(int productId, Map<String, dynamic> product) async {
+    final db = await instance.database;
+    return await db.update(
+      'Products',
+      product,
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+  }
+
+  /// Xóa sản phẩm
+  Future<int> deleteProduct(int productId) async {
+    final db = await instance.database;
+    return await db.delete(
+      'Products',
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+  }
 }
