@@ -245,19 +245,142 @@ class DatabaseHelper {
       whereArgs: [tableId],
     );
   }
+  
+  // ========== USER MANAGEMENT METHODS ==========
+  /// Lấy tất cả users
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = await instance.database;
+    return await db.query('Users', orderBy: 'UserID');
+  }
 
-  // // Kiểm tra đăng nhập thường
-  // Future<User?> login(String username, String password) async {
-  //   final db = await instance.database;
-  //   final maps = await db.query(
-  //     'Users',
-  //     where: 'Username = ? AND Password = ?',
-  //     whereArgs: [username, password],
-  //   );
+  /// Lấy user theo ID
+  Future<Map<String, dynamic>?> getUserById(int userId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'Users',
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+    return result.isNotEmpty ? result.first : null;
+  }
 
-  //   if (maps.isNotEmpty) {
-  //     return User.fromMap(maps.first);
-  //   }
-  //   return null;
-  // }
+  /// Thêm user mới
+  Future<int> insertUser(Map<String, dynamic> user) async {
+    final db = await instance.database;
+    return await db.insert('Users', user);
+  }
+
+  /// Cập nhật user (chỉ role có thể chỉnh sửa)
+  Future<int> updateUserRole(int userId, String newRole) async {
+    final db = await instance.database;
+    return await db.update(
+      'Users',
+      {'Role': newRole},
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  /// Xóa user
+  Future<int> deleteUser(int userId) async {
+    final db = await instance.database;
+    return await db.delete(
+      'Users',
+      where: 'UserID = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // ========== PRODUCT MANAGEMENT METHODS ==========
+  /// Thêm sản phẩm
+  Future<int> insertProduct(Map<String, dynamic> product) async {
+    final db = await instance.database;
+    return await db.insert('Products', product);
+  }
+
+  /// Lấy sản phẩm theo ID
+  Future<Map<String, dynamic>?> getProductById(int productId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'Products',
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  /// Cập nhật sản phẩm
+  Future<int> updateProduct(int productId, Map<String, dynamic> product) async {
+    final db = await instance.database;
+    return await db.update(
+      'Products',
+      product,
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+  }
+
+  /// Xóa sản phẩm
+  Future<int> deleteProduct(int productId) async {
+    final db = await instance.database;
+    return await db.delete(
+      'Products',
+      where: 'ProductID = ?',
+      whereArgs: [productId],
+    );
+  }
+
+  // ---- Bat Dau Phan 2 ----
+  Future<List<Map<String, dynamic>>> getAllProducts() async {
+    final db = await instance.database;
+    return await db.query('Products');
+  }
+
+  // Hoặc lấy sản phẩm theo danh mục (nếu có phân loại Trà, Cà phê, Bánh...)
+  Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
+    final db = await instance.database;
+    return await db.query(
+      'Products',
+      where: 'Category = ?',
+      whereArgs: [category],
+    );
+  }
+  // ---- Ket thuc phan 2 ----
+  // ---- Bat Dau Phan 8 ----
+// Báo cáo tổng quan: Tổng số đơn và Tổng doanh thu
+  Future<Map<String, dynamic>> getGeneralReport() async {
+    final db = await instance.database;
+    // Lấy các đơn hàng đã hoàn thành (Ready hoặc Paid)
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+      SELECT 
+        COUNT(OrderID) as TotalOrders, 
+        SUM(TotalAmount) as TotalRevenue
+      FROM MealOrders
+      WHERE Status IN ('Ready', 'Paid')
+    ''');
+
+    // Trả về dữ liệu, nếu NULL thì gán mặc định là 0
+    if (result.isNotEmpty && result.first['TotalOrders'] != 0) {
+      return result.first;
+    }
+    return {'TotalOrders': 0, 'TotalRevenue': 0.0};
+  }
+
+  // Thống kê món ăn bán chạy nhất (Best Sellers)
+  Future<List<Map<String, dynamic>>> getProductUsageReport() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        p.ProductName, 
+        SUM(d.Quantity) as TotalSold, 
+        SUM(d.Quantity * p.Price) as Revenue
+      FROM OrderDetails d
+      JOIN Products p ON d.ProductID = p.ProductID
+      JOIN MealOrders m ON d.OrderID = m.OrderID
+      WHERE m.Status IN ('Ready', 'Paid')
+      GROUP BY p.ProductID
+      ORDER BY TotalSold DESC
+    ''');
+  }
+// ---- Ket thuc phan 8 ----
 }
