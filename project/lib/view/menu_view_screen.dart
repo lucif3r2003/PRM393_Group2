@@ -7,12 +7,14 @@ class MenuViewScreen extends StatefulWidget {
   final int tableId;
   final String tableName;
   final int waiterId;
+  final String waiterName;
 
   const MenuViewScreen({
     super.key,
     required this.tableId,
     required this.tableName,
     required this.waiterId,
+    required this.waiterName,
   });
 
   @override
@@ -78,6 +80,7 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
           tableId: widget.tableId,
           tableName: widget.tableName,
           waiterId: widget.waiterId,
+          waiterName: widget.waiterName,
           items: _cart.values.toList(),
         ),
       ),

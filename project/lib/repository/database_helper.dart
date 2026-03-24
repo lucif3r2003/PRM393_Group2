@@ -194,6 +194,18 @@ class DatabaseHelper {
     return result.map((json) => entity.Table.fromMap(json)).toList();
   }
 
+  Future<entity.Table?> getTableById(int tableId) async {
+    final db = await database;
+    final result = await db.query(
+      'DiningTables',
+      where: 'TableID = ?',
+      whereArgs: [tableId],
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return entity.Table.fromMap(result.first);
+  }
+
   Future<int> updateTableStatus(int tableId, String newStatus) async {
     final db = await database;
     return db.update(
@@ -335,6 +347,19 @@ class DatabaseHelper {
     return rows.isEmpty ? null : rows.first;
   }
 
+  Future<Map<String, dynamic>?> getActiveOrderByTable(int tableId) async {
+    final db = await database;
+    final rows = await db.query(
+      'MealOrders',
+      where: "TableID = ? AND Status IN ('Pending', 'Preparing', 'Ready')",
+      whereArgs: [tableId],
+      orderBy: 'OrderID DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
+
   Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
     final db = await database;
     return db.rawQuery(
@@ -347,6 +372,13 @@ class DatabaseHelper {
       ''',
       [orderId],
     );
+  }
+
+  Future<List<Map<String, dynamic>>> getServingItemsByTable(int tableId) async {
+    final activeOrder = await getActiveOrderByTable(tableId);
+    if (activeOrder == null) return [];
+    final orderId = activeOrder['OrderID'] as int;
+    return getOrderItems(orderId);
   }
 
   Future<String> getOrderStatus(int orderId) async {

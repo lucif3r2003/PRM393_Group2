@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:project/repository/database_helper.dart';
-import 'package:project/view/checkout_screen.dart';
+import 'package:project/view/list_table_screen.dart';
 
 class OrderScreen extends StatefulWidget {
   final int tableId;
   final String tableName;
   final int waiterId;
+  final String waiterName;
   final List<Map<String, dynamic>> items;
 
   const OrderScreen({
@@ -13,6 +14,7 @@ class OrderScreen extends StatefulWidget {
     required this.tableId,
     required this.tableName,
     required this.waiterId,
+    required this.waiterName,
     required this.items,
   });
 
@@ -43,13 +45,17 @@ class _OrderScreenState extends State<OrderScreen> {
       );
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã tạo order #$orderId cho ${widget.tableName}')),
+      );
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => CheckoutScreen(
-            orderId: orderId,
-            tableName: widget.tableName,
+          builder: (_) => TableListScreen(
+            waiterId: widget.waiterId,
+            waiterName: widget.waiterName,
           ),
         ),
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
