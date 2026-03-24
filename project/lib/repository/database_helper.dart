@@ -1,5 +1,7 @@
 import 'package:project/entity/order.dart';
 import 'package:project/entity/order_queue_item.dart';
+import 'package:project/entity/table.dart' as entity;
+import 'package:project/entity/user.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -21,6 +23,8 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
+
+    // await deleteDatabase(path); // xoa du lieu thi bo cai comment nay di
 
     // Mở database, nếu chưa có sẽ gọi hàm _createDB
     return await openDatabase(
@@ -106,6 +110,45 @@ class DatabaseHelper {
         FOREIGN KEY (ProductID) REFERENCES Products (ProductID)
       )
     ''');
+
+    // --- PHẦN BỔ SUNG: CHÈN DỮ LIỆU MẪU ---
+
+    // 1. Chèn User mẫu để Log in
+    await db.insert('Users', {
+      'Username': 'admin',
+      'Password': '123',
+      'FullName': 'Quản lý cửa hàng',
+      'Role': 'Admin',
+    });
+
+    // 2. Chèn 8 cái bàn mẫu theo đúng hình vẽ
+    final List<Map<String, String>> sampleTables = [
+      {'TableName': 'Bàn 1', 'Status': 'Empty'},
+      {'TableName': 'Bàn 2', 'Status': 'Empty'},
+      {'TableName': 'Bàn 3', 'Status': 'Empty'},
+      {'TableName': 'Bàn 4', 'Status': 'Occupied'},
+      {'TableName': 'Bàn 5', 'Status': 'Occupied'},
+      {'TableName': 'Bàn 6', 'Status': 'Reserved'},
+      {'TableName': 'Bàn 7', 'Status': 'Reserved'},
+      {'TableName': 'Bàn 8', 'Status': 'Empty'},
+    ];
+
+    for (var table in sampleTables) {
+      await db.insert('DiningTables', table);
+    }
+    await db.execute('''
+  INSERT INTO Products (ProductName, Category, Price, Description) VALUES 
+  ('Cà phê Đen', 'Cà phê', 25000, 'Cà phê rang xay nguyên chất đậm đà'),
+  ('Cà phê Sữa', 'Cà phê', 29000, 'Cà phê hòa quyện cùng sữa đặc béo ngậy'),
+  ('Bạc Xỉu', 'Cà phê', 32000, 'Nhiều sữa ít cà phê, hương vị nhẹ nhàng'),
+  ('Cappuccino', 'Cà phê', 45000, 'Cà phê Ý với lớp bọt sữa mịn màng'),
+  ('Trà Đào Cam Sả', 'Trà', 39000, 'Trà thanh mát kết hợp đào và hương sả'),
+  ('Trà Vải', 'Trà', 35000, 'Trà đen cùng trái vải tươi ngọt lịm'),
+  ('Trà Sữa Trân Châu', 'Trà', 40000, 'Trà sữa truyền thống kèm trân châu đen'),
+  ('Bánh Mì Thịt', 'Đồ ăn', 30000, 'Bánh mì giòn kẹp thịt xá xíu và pate'),
+  ('Bánh Croissant', 'Đồ ăn', 25000, 'Bánh sừng bò thơm nức mùi bơ'),
+  ('Hạt Hướng Dương', 'Khác', 15000, 'Món nhâm nhi cùng bạn bè');
+''');
   } // ✅ ĐÂY LÀ DẤU NGOẶC KẾT THÚC CỦA HÀM _createDB. CÁC HÀM TRUY VẤN PHẢI NẰM DƯỚI NÓ!
 
   // =========================================================================
@@ -115,14 +158,15 @@ class DatabaseHelper {
   /// Lấy danh sách Đơn hàng theo Trạng thái (Pending, Preparing, Ready)
   Future<List<OrderQueueItem>> getOrderQueueByStatus(String status) async {
     final db = await instance.database;
-
     final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
       SELECT m.*, t.TableName 
       FROM MealOrders m
       JOIN DiningTables t ON m.TableID = t.TableID
       WHERE m.Status = ?
       ORDER BY m.CreatedAt ASC
-    ''', [status]);
+    ''',
+      [status],
+    );
 
     List<OrderQueueItem> queueItems = [];
 
@@ -130,12 +174,15 @@ class DatabaseHelper {
       Order order = Order.fromMap(orderMap);
       String tableName = orderMap['TableName'] as String;
 
-      final List<Map<String, dynamic>> detailMaps = await db.rawQuery('''
+      final List<Map<String, dynamic>> detailMaps = await db.rawQuery(
+        '''
         SELECT d.Quantity, d.Note, p.ProductName 
         FROM OrderDetails d
         JOIN Products p ON d.ProductID = p.ProductID
         WHERE d.OrderID = ?
-      ''', [order.orderId]);
+      ''',
+        [order.orderId],
+      );
 
       List<OrderDetailItem> details = detailMaps.map((d) {
         return OrderDetailItem(
@@ -165,4 +212,52 @@ class DatabaseHelper {
       whereArgs: [orderId],
     );
   }
+
+  // Hàm đăng nhập
+  Future<User?> login(String username, String password) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'Users',
+      where: 'Username = ? AND Password = ?',
+      whereArgs: [username, password],
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Hàm lấy toàn bộ danh sách bàn
+  Future<List<entity.Table>> getAllTables() async {
+    final db = await instance.database;
+    final result = await db.query('DiningTables');
+    return result.map((json) => entity.Table.fromMap(json)).toList();
+  }
+
+  // Hàm cập nhật trạng thái bàn (Ví dụ: khi khách vào ngồi)
+  Future<int> updateTableStatus(int tableId, String newStatus) async {
+    final db = await instance.database;
+    return await db.update(
+      'DiningTables',
+      {'Status': newStatus},
+      where: 'TableID = ?',
+      whereArgs: [tableId],
+    );
+  }
+
+  // // Kiểm tra đăng nhập thường
+  // Future<User?> login(String username, String password) async {
+  //   final db = await instance.database;
+  //   final maps = await db.query(
+  //     'Users',
+  //     where: 'Username = ? AND Password = ?',
+  //     whereArgs: [username, password],
+  //   );
+
+  //   if (maps.isNotEmpty) {
+  //     return User.fromMap(maps.first);
+  //   }
+  //   return null;
+  // }
 }

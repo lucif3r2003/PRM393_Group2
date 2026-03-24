@@ -1,5 +1,4 @@
-import 'package:project/entity/order.dart';
-
+import 'order.dart';
 // Class chứa chi tiết từng món ăn kèm tên món
 class OrderDetailItem {
   final int quantity;
