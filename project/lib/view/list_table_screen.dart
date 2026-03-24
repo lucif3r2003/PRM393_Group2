@@ -6,7 +6,7 @@ import 'package:project/view/table_detail_screen.dart'; // Import file chi tiế
 class TableListScreen extends StatefulWidget {
   const TableListScreen({super.key});
 
-  @override
+  @override  
   _TableListScreenState createState() => _TableListScreenState();
 }
 
