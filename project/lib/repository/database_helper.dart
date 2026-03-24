@@ -1,47 +1,50 @@
+import 'package:path/path.dart';
 import 'package:project/entity/order.dart';
 import 'package:project/entity/order_queue_item.dart';
 import 'package:project/entity/table.dart' as entity;
 import 'package:project/entity/user.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 
 class DatabaseHelper {
-  // Đảm bảo chỉ có 1 instance của DatabaseHelper được tạo ra (Singleton)
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
   DatabaseHelper._init();
 
-  // Getter để lấy instance của database
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('cafeteria_system.db');
     return _database!;
   }
 
-  // Khởi tạo và mở database
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    // await deleteDatabase(path); // xoa du lieu thi bo cai comment nay di
-
-    // Mở database, nếu chưa có sẽ gọi hàm _createDB
-    return await openDatabase(
+    return openDatabase(
       path,
-      version: 1,
-      onCreate: _createDB,
+      version: 2,
       onConfigure: _onConfigure,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
-  // Kích hoạt khóa ngoại (Foreign Key) trong SQLite
-  Future _onConfigure(Database db) async {
+  Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  // Chạy các lệnh CREATE TABLE khi database được tạo lần đầu
-  Future _createDB(Database db, int version) async {
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    await db.execute('DROP TABLE IF EXISTS OrderDetails');
+    await db.execute('DROP TABLE IF EXISTS MealOrders');
+    await db.execute('DROP TABLE IF EXISTS Ingredients');
+    await db.execute('DROP TABLE IF EXISTS Products');
+    await db.execute('DROP TABLE IF EXISTS DiningTables');
+    await db.execute('DROP TABLE IF EXISTS Users');
+    await _createDB(db, newVersion);
+  }
+
+  Future<void> _createDB(Database db, int version) async {
     const idAuto = 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const textType = 'TEXT NOT NULL';
     const realType = 'REAL NOT NULL';
@@ -58,7 +61,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE Tables (
+      CREATE TABLE DiningTables (
         TableID $idAuto,
         TableName $textType,
         Status $textType
@@ -71,7 +74,7 @@ class DatabaseHelper {
         ProductName $textType,
         Category $textType,
         Price $realType,
-        Description TEXT 
+        Description TEXT
       )
     ''');
 
@@ -85,7 +88,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE Orders (
+      CREATE TABLE MealOrders (
         OrderID $idAuto,
         TableID $intType,
         WaiterID $intType,
@@ -109,18 +112,40 @@ class DatabaseHelper {
       )
     ''');
 
-    // --- PHẦN BỔ SUNG: CHÈN DỮ LIỆU MẪU ---
+    await _seedUsers(db);
+    await _seedTables(db);
+    await _seedProducts(db);
+  }
 
-    // 1. Chèn User mẫu để Log in
-    await db.insert('Users', {
-      'Username': 'admin',
-      'Password': '123',
-      'FullName': 'Quản lý cửa hàng',
-      'Role': 'Admin',
-    });
+  Future<void> _seedUsers(Database db) async {
+    final users = [
+      {
+        'Username': 'admin',
+        'Password': '123',
+        'FullName': 'Quản lý cửa hàng',
+        'Role': 'Admin',
+      },
+      {
+        'Username': 'waiter1',
+        'Password': '123',
+        'FullName': 'Nhân viên phục vụ 1',
+        'Role': 'Waiter',
+      },
+      {
+        'Username': 'bar1',
+        'Password': '123',
+        'FullName': 'Nhân viên pha chế',
+        'Role': 'Bartender',
+      },
+    ];
 
-    // 2. Chèn 8 cái bàn mẫu theo đúng hình vẽ
-    final List<Map<String, String>> sampleTables = [
+    for (final user in users) {
+      await db.insert('Users', user);
+    }
+  }
+
+  Future<void> _seedTables(Database db) async {
+    final tables = [
       {'TableName': 'Bàn 1', 'Status': 'Empty'},
       {'TableName': 'Bàn 2', 'Status': 'Empty'},
       {'TableName': 'Bàn 3', 'Status': 'Empty'},
@@ -131,128 +156,61 @@ class DatabaseHelper {
       {'TableName': 'Bàn 8', 'Status': 'Empty'},
     ];
 
-    for (var table in sampleTables) {
+    for (final table in tables) {
       await db.insert('DiningTables', table);
     }
+  }
+
+  Future<void> _seedProducts(Database db) async {
     await db.execute('''
-  INSERT INTO Products (ProductName, Category, Price, Description) VALUES 
-  ('Cà phê Đen', 'Cà phê', 25000, 'Cà phê rang xay nguyên chất đậm đà'),
-  ('Cà phê Sữa', 'Cà phê', 29000, 'Cà phê hòa quyện cùng sữa đặc béo ngậy'),
-  ('Bạc Xỉu', 'Cà phê', 32000, 'Nhiều sữa ít cà phê, hương vị nhẹ nhàng'),
-  ('Cappuccino', 'Cà phê', 45000, 'Cà phê Ý với lớp bọt sữa mịn màng'),
-  ('Trà Đào Cam Sả', 'Trà', 39000, 'Trà thanh mát kết hợp đào và hương sả'),
-  ('Trà Vải', 'Trà', 35000, 'Trà đen cùng trái vải tươi ngọt lịm'),
-  ('Trà Sữa Trân Châu', 'Trà', 40000, 'Trà sữa truyền thống kèm trân châu đen'),
-  ('Bánh Croissant', 'Đồ ăn', 25000, 'Bánh sừng bò thơm nức mùi bơ'),
-  ('Hạt Hướng Dương', 'Khác', 15000, 'Món nhâm nhi cùng bạn bè');
-''');
-  } // ✅ ĐÂY LÀ DẤU NGOẶC KẾT THÚC CỦA HÀM _createDB. CÁC HÀM TRUY VẤN PHẢI NẰM DƯỚI NÓ!
-
-  // =========================================================================
-  // CÁC HÀM TRUY VẤN DỮ LIỆU (Đã được đưa ra ngoài hàm _createDB)
-  // =========================================================================
-
-  /// Lấy danh sách Đơn hàng theo Trạng thái (Pending, Preparing, Ready)
-  Future<List<OrderQueueItem>> getOrderQueueByStatus(String status) async {
-    final db = await instance.database;
-    final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
-      SELECT m.*, t.TableName 
-      FROM MealOrders m
-      JOIN DiningTables t ON m.TableID = t.TableID
-      WHERE m.Status = ?
-      ORDER BY m.CreatedAt ASC
-    ''',
-      [status],
-    );
-
-    List<OrderQueueItem> queueItems = [];
-
-    for (var orderMap in orderMaps) {
-      Order order = Order.fromMap(orderMap);
-      String tableName = orderMap['TableName'] as String;
-
-      final List<Map<String, dynamic>> detailMaps = await db.rawQuery(
-        '''
-        SELECT d.Quantity, d.Note, p.ProductName 
-        FROM OrderDetails d
-        JOIN Products p ON d.ProductID = p.ProductID
-        WHERE d.OrderID = ?
-      ''',
-        [order.orderId],
-      );
-
-      List<OrderDetailItem> details = detailMaps.map((d) {
-        return OrderDetailItem(
-          quantity: d['Quantity'] as int,
-          productName: d['ProductName'] as String,
-          note: d['Note'] as String?,
-        );
-      }).toList();
-
-      queueItems.add(OrderQueueItem(
-        order: order,
-        tableName: tableName,
-        details: details,
-      ));
-    }
-
-    return queueItems;
+      INSERT INTO Products (ProductName, Category, Price, Description) VALUES
+      ('Cà phê Đen', 'Cà phê', 25000, 'Cà phê rang xay nguyên chất đậm đà'),
+      ('Cà phê Sữa', 'Cà phê', 29000, 'Cà phê hòa quyện cùng sữa đặc béo ngậy'),
+      ('Bạc Xỉu', 'Cà phê', 32000, 'Nhiều sữa ít cà phê, hương vị nhẹ nhàng'),
+      ('Cappuccino', 'Cà phê', 45000, 'Cà phê Ý với lớp bọt sữa mịn màng'),
+      ('Trà Đào Cam Sả', 'Trà', 39000, 'Trà thanh mát kết hợp đào và hương sả'),
+      ('Trà Vải', 'Trà', 35000, 'Trà đen cùng trái vải tươi ngọt lịm'),
+      ('Trà Sữa Trân Châu', 'Trà', 40000, 'Trà sữa truyền thống kèm trân châu đen'),
+      ('Bánh Croissant', 'Đồ ăn', 25000, 'Bánh sừng bò thơm nức mùi bơ'),
+      ('Hạt Hướng Dương', 'Khác', 15000, 'Món nhâm nhi cùng bạn bè')
+    ''');
   }
 
-  /// Cập nhật trạng thái của đơn hàng (Khi Bartender bấm nút)
-  Future<int> updateOrderStatus(int orderId, String newStatus) async {
-    final db = await instance.database;
-    return await db.update(
-      'MealOrders',
-      {'Status': newStatus},
-      where: 'OrderID = ?',
-      whereArgs: [orderId],
-    );
-  }
-
-  // Hàm đăng nhập
   Future<User?> login(String username, String password) async {
-    final db = await instance.database;
+    final db = await database;
     final maps = await db.query(
       'Users',
       where: 'Username = ? AND Password = ?',
       whereArgs: [username, password],
     );
 
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    }
-    return null;
+    if (maps.isEmpty) return null;
+    return User.fromMap(maps.first);
   }
 
-  // Hàm lấy toàn bộ danh sách bàn
   Future<List<entity.Table>> getAllTables() async {
-    final db = await instance.database;
-    final result = await db.query('DiningTables');
+    final db = await database;
+    final result = await db.query('DiningTables', orderBy: 'TableID');
     return result.map((json) => entity.Table.fromMap(json)).toList();
   }
 
-  // Hàm cập nhật trạng thái bàn (Ví dụ: khi khách vào ngồi)
   Future<int> updateTableStatus(int tableId, String newStatus) async {
-    final db = await instance.database;
-    return await db.update(
+    final db = await database;
+    return db.update(
       'DiningTables',
       {'Status': newStatus},
       where: 'TableID = ?',
       whereArgs: [tableId],
     );
   }
-  
-  // ========== USER MANAGEMENT METHODS ==========
-  /// Lấy tất cả users
+
   Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final db = await instance.database;
-    return await db.query('Users', orderBy: 'UserID');
+    final db = await database;
+    return db.query('Users', orderBy: 'UserID');
   }
 
-  /// Lấy user theo ID
   Future<Map<String, dynamic>?> getUserById(int userId) async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query(
       'Users',
       where: 'UserID = ?',
@@ -261,16 +219,14 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 
-  /// Thêm user mới
   Future<int> insertUser(Map<String, dynamic> user) async {
-    final db = await instance.database;
-    return await db.insert('Users', user);
+    final db = await database;
+    return db.insert('Users', user);
   }
 
-  /// Cập nhật user (chỉ role có thể chỉnh sửa)
   Future<int> updateUserRole(int userId, String newRole) async {
-    final db = await instance.database;
-    return await db.update(
+    final db = await database;
+    return db.update(
       'Users',
       {'Role': newRole},
       where: 'UserID = ?',
@@ -278,26 +234,18 @@ class DatabaseHelper {
     );
   }
 
-  /// Xóa user
   Future<int> deleteUser(int userId) async {
-    final db = await instance.database;
-    return await db.delete(
-      'Users',
-      where: 'UserID = ?',
-      whereArgs: [userId],
-    );
+    final db = await database;
+    return db.delete('Users', where: 'UserID = ?', whereArgs: [userId]);
   }
 
-  // ========== PRODUCT MANAGEMENT METHODS ==========
-  /// Thêm sản phẩm
   Future<int> insertProduct(Map<String, dynamic> product) async {
-    final db = await instance.database;
-    return await db.insert('Products', product);
+    final db = await database;
+    return db.insert('Products', product);
   }
 
-  /// Lấy sản phẩm theo ID
   Future<Map<String, dynamic>?> getProductById(int productId) async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query(
       'Products',
       where: 'ProductID = ?',
@@ -306,10 +254,9 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 
-  /// Cập nhật sản phẩm
   Future<int> updateProduct(int productId, Map<String, dynamic> product) async {
-    final db = await instance.database;
-    return await db.update(
+    final db = await database;
+    return db.update(
       'Products',
       product,
       where: 'ProductID = ?',
@@ -317,60 +264,205 @@ class DatabaseHelper {
     );
   }
 
-  /// Xóa sản phẩm
   Future<int> deleteProduct(int productId) async {
-    final db = await instance.database;
-    return await db.delete(
-      'Products',
-      where: 'ProductID = ?',
-      whereArgs: [productId],
-    );
+    final db = await database;
+    return db.delete('Products', where: 'ProductID = ?', whereArgs: [productId]);
   }
 
-  // ---- Bat Dau Phan 2 ----
   Future<List<Map<String, dynamic>>> getAllProducts() async {
-    final db = await instance.database;
-    return await db.query('Products');
+    final db = await database;
+    return db.query('Products', orderBy: 'ProductName');
   }
 
-  // Hoặc lấy sản phẩm theo danh mục (nếu có phân loại Trà, Cà phê, Bánh...)
   Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
-    final db = await instance.database;
-    return await db.query(
-      'Products',
-      where: 'Category = ?',
-      whereArgs: [category],
+    final db = await database;
+    return db.query('Products', where: 'Category = ?', whereArgs: [category]);
+  }
+
+  Future<int> createOrder({
+    required int tableId,
+    required int waiterId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final db = await database;
+    if (items.isEmpty) {
+      throw Exception('Danh sách món đang trống');
+    }
+
+    return db.transaction((txn) async {
+      var total = 0.0;
+      for (final item in items) {
+        final quantity = (item['quantity'] as int?) ?? 0;
+        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+        total += quantity * price;
+      }
+
+      final orderId = await txn.insert('MealOrders', {
+        'TableID': tableId,
+        'WaiterID': waiterId,
+        'TotalAmount': total,
+        'Status': 'Pending',
+        'CreatedAt': DateTime.now().toIso8601String(),
+      });
+
+      for (final item in items) {
+        await txn.insert('OrderDetails', {
+          'OrderID': orderId,
+          'ProductID': item['productId'],
+          'Quantity': item['quantity'],
+          'Note': item['note'],
+        });
+      }
+
+      await txn.update(
+        'DiningTables',
+        {'Status': 'Occupied'},
+        where: 'TableID = ?',
+        whereArgs: [tableId],
+      );
+
+      return orderId;
+    });
+  }
+
+  Future<Map<String, dynamic>?> getOrderById(int orderId) async {
+    final db = await database;
+    final rows = await db.query(
+      'MealOrders',
+      where: 'OrderID = ?',
+      whereArgs: [orderId],
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
+    final db = await database;
+    return db.rawQuery(
+      '''
+      SELECT d.OrderDetailID, d.Quantity, d.Note, p.ProductName, p.Price
+      FROM OrderDetails d
+      JOIN Products p ON d.ProductID = p.ProductID
+      WHERE d.OrderID = ?
+      ORDER BY d.OrderDetailID
+      ''',
+      [orderId],
     );
   }
-  // ---- Ket thuc phan 2 ----
-  // ---- Bat Dau Phan 8 ----
-// Báo cáo tổng quan: Tổng số đơn và Tổng doanh thu
+
+  Future<String> getOrderStatus(int orderId) async {
+    final order = await getOrderById(orderId);
+    if (order == null) return 'Unknown';
+    return order['Status'] as String;
+  }
+
+  Future<void> completePayment(int orderId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final orderRows = await txn.query(
+        'MealOrders',
+        where: 'OrderID = ?',
+        whereArgs: [orderId],
+      );
+      if (orderRows.isEmpty) return;
+
+      final tableId = orderRows.first['TableID'] as int;
+
+      await txn.update(
+        'MealOrders',
+        {'Status': 'Paid'},
+        where: 'OrderID = ?',
+        whereArgs: [orderId],
+      );
+
+      await txn.update(
+        'DiningTables',
+        {'Status': 'Empty'},
+        where: 'TableID = ?',
+        whereArgs: [tableId],
+      );
+    });
+  }
+
+  Future<List<OrderQueueItem>> getOrderQueueByStatus(String status) async {
+    final db = await database;
+    final orderMaps = await db.rawQuery(
+      '''
+      SELECT m.*, t.TableName
+      FROM MealOrders m
+      JOIN DiningTables t ON m.TableID = t.TableID
+      WHERE m.Status = ?
+      ORDER BY m.CreatedAt ASC
+      ''',
+      [status],
+    );
+
+    final queueItems = <OrderQueueItem>[];
+
+    for (final orderMap in orderMaps) {
+      final order = Order.fromMap(orderMap);
+      final tableName = orderMap['TableName'] as String;
+
+      final detailMaps = await db.rawQuery(
+        '''
+        SELECT d.Quantity, d.Note, p.ProductName
+        FROM OrderDetails d
+        JOIN Products p ON d.ProductID = p.ProductID
+        WHERE d.OrderID = ?
+        ''',
+        [order.orderId],
+      );
+
+      final details = detailMaps
+          .map(
+            (d) => OrderDetailItem(
+              quantity: d['Quantity'] as int,
+              productName: d['ProductName'] as String,
+              note: d['Note'] as String?,
+            ),
+          )
+          .toList();
+
+      queueItems.add(
+        OrderQueueItem(order: order, tableName: tableName, details: details),
+      );
+    }
+
+    return queueItems;
+  }
+
+  Future<int> updateOrderStatus(int orderId, String newStatus) async {
+    final db = await database;
+    return db.update(
+      'MealOrders',
+      {'Status': newStatus},
+      where: 'OrderID = ?',
+      whereArgs: [orderId],
+    );
+  }
+
   Future<Map<String, dynamic>> getGeneralReport() async {
-    final db = await instance.database;
-    // Lấy các đơn hàng đã hoàn thành (Ready hoặc Paid)
-    final List<Map<String, dynamic>> result = await db.rawQuery('''
-      SELECT 
-        COUNT(OrderID) as TotalOrders, 
-        SUM(TotalAmount) as TotalRevenue
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT
+        COUNT(OrderID) AS TotalOrders,
+        COALESCE(SUM(TotalAmount), 0) AS TotalRevenue
       FROM MealOrders
       WHERE Status IN ('Ready', 'Paid')
     ''');
 
-    // Trả về dữ liệu, nếu NULL thì gán mặc định là 0
-    if (result.isNotEmpty && result.first['TotalOrders'] != 0) {
-      return result.first;
+    if (result.isEmpty) {
+      return {'TotalOrders': 0, 'TotalRevenue': 0.0};
     }
-    return {'TotalOrders': 0, 'TotalRevenue': 0.0};
+    return result.first;
   }
 
-  // Thống kê món ăn bán chạy nhất (Best Sellers)
   Future<List<Map<String, dynamic>>> getProductUsageReport() async {
-    final db = await instance.database;
-    return await db.rawQuery('''
-      SELECT 
-        p.ProductName, 
-        SUM(d.Quantity) as TotalSold, 
-        SUM(d.Quantity * p.Price) as Revenue
+    final db = await database;
+    return db.rawQuery('''
+      SELECT
+        p.ProductName,
+        SUM(d.Quantity) AS TotalSold,
+        SUM(d.Quantity * p.Price) AS Revenue
       FROM OrderDetails d
       JOIN Products p ON d.ProductID = p.ProductID
       JOIN MealOrders m ON d.OrderID = m.OrderID
@@ -379,5 +471,4 @@ class DatabaseHelper {
       ORDER BY TotalSold DESC
     ''');
   }
-// ---- Ket thuc phan 8 ----
 }

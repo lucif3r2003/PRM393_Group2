@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:project/repository/database_helper.dart';
 import 'package:project/entity/table.dart' as entity;
-import 'package:project/view/table_detail_screen.dart'; // Import file chi tiết
+import 'package:project/repository/auth_session.dart';
+import 'package:project/view/login_screen.dart';
+import 'package:project/view/table_detail_screen.dart';
 
 class TableListScreen extends StatefulWidget {
-  const TableListScreen({super.key});
+  final int waiterId;
+  final String waiterName;
+
+  const TableListScreen({
+    super.key,
+    required this.waiterId,
+    required this.waiterName,
+  });
 
   @override  
   _TableListScreenState createState() => _TableListScreenState();
@@ -24,6 +33,14 @@ class _TableListScreenState extends State<TableListScreen> {
     }
   }
 
+  void _logout(BuildContext context) {
+    AuthSession.clear();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,7 +50,11 @@ class _TableListScreenState extends State<TableListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {}), // Làm mới danh sách
+            onPressed: () => setState(() {}),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => _logout(context),
           ),
         ],
       ),
@@ -61,14 +82,17 @@ class _TableListScreenState extends State<TableListScreen> {
               final table = tables[index];
               return InkWell(
                 onTap: () async {
-                  // Chuyển sang màn hình chi tiết và đợi kết quả trả về để refresh
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => TableDetailScreen(table: table),
+                      builder: (context) => TableDetailScreen(
+                        table: table,
+                        waiterId: widget.waiterId,
+                        waiterName: widget.waiterName,
+                      ),
                     ),
                   );
-                  setState(() {}); // Refresh lại màu sắc bàn sau khi quay về
+                  setState(() {});
                 },
                 child: Container(
                   decoration: BoxDecoration(

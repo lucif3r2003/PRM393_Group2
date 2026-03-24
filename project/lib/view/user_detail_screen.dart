@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
 
 class UserDetailScreen extends StatefulWidget {
@@ -64,6 +65,15 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AuthSession.hasAnyRole(['Admin'])) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Thông tin người dùng')),
+        body: const Center(
+          child: Text('Bạn không có quyền truy cập màn hình này.'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Thông tin người dùng'),

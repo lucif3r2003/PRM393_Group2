@@ -1,18 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:project/entity/product.dart';
 import 'package:project/repository/database_helper.dart';
+import 'package:project/view/order_screen.dart';
 
 class MenuViewScreen extends StatefulWidget {
-  const MenuViewScreen({super.key});
+  final int tableId;
+  final String tableName;
+  final int waiterId;
+
+  const MenuViewScreen({
+    super.key,
+    required this.tableId,
+    required this.tableName,
+    required this.waiterId,
+  });
 
   @override
   State<MenuViewScreen> createState() => _MenuViewScreenState();
 }
 
 class _MenuViewScreenState extends State<MenuViewScreen> {
-  // Danh sách các danh mục món ăn (Có thể lấy động từ DB hoặc fix cứng theo yêu cầu)
   final List<String> categories = ['Tất cả', 'Cà phê', 'Trà', 'Đồ ăn', 'Khác'];
   String searchQueries = "";
+  final Map<int, Map<String, dynamic>> _cart = {};
+
+  int get _totalItems {
+    var total = 0;
+    for (final item in _cart.values) {
+      total += item['quantity'] as int;
+    }
+    return total;
+  }
+
+  void _addToCart(Product product) {
+    final key = product.productID!;
+    final existing = _cart[key];
+    if (existing == null) {
+      _cart[key] = {
+        'productId': product.productID,
+        'productName': product.productName,
+        'price': product.price,
+        'quantity': 1,
+        'note': null,
+      };
+    } else {
+      existing['quantity'] = (existing['quantity'] as int) + 1;
+    }
+    setState(() {});
+  }
+
+  void _removeFromCart(Product product) {
+    final key = product.productID!;
+    final existing = _cart[key];
+    if (existing == null) return;
+
+    final nextQty = (existing['quantity'] as int) - 1;
+    if (nextQty <= 0) {
+      _cart.remove(key);
+    } else {
+      existing['quantity'] = nextQty;
+    }
+    setState(() {});
+  }
+
+  void _goToOrderScreen() {
+    if (_cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn chưa chọn món nào.')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderScreen(
+          tableId: widget.tableId,
+          tableName: widget.tableName,
+          waiterId: widget.waiterId,
+          items: _cart.values.toList(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +90,14 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
       length: categories.length,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Thực đơn (Menu)'),
+          title: Text('Drink Detail - ${widget.tableName}'),
           bottom: TabBar(
-            isScrollable: true, // Cho phép vuốt ngang các tab nếu quá dài
+            isScrollable: true,
             tabs: categories.map((cat) => Tab(text: cat)).toList(),
           ),
         ),
         body: Column(
           children: [
-            // Thanh tìm kiếm nhanh
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -47,7 +116,6 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
                 },
               ),
             ),
-            // Hiển thị danh sách sản phẩm theo từng Tab
             Expanded(
               child: TabBarView(
                 children: categories.map((cat) {
@@ -57,13 +125,17 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
             ),
           ],
         ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _goToOrderScreen,
+          icon: const Icon(Icons.receipt_long),
+          label: Text('Order ($_totalItems)'),
+        ),
       ),
     );
   }
 
   Widget _buildProductList({required String category}) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      // Nếu là 'Tất cả' thì gọi getAll, ngược lại gọi theo Category
       future: category == 'Tất cả'
           ? DatabaseHelper.instance.getAllProducts()
           : DatabaseHelper.instance.getProductsByCategory(category),
@@ -75,8 +147,8 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
           return Center(child: Text('Lỗi: ${snapshot.error}'));
         }
 
-        // Chuyển đổi dữ liệu Map từ SQLite sang List<Product>
-        List<Product> products = snapshot.data!
+        final rawProducts = snapshot.data ?? [];
+        List<Product> products = rawProducts
             .map((map) => Product.fromMap(map))
             .where((p) => p.productName.toLowerCase().contains(searchQueries))
             .toList();
@@ -115,14 +187,19 @@ class _MenuViewScreenState extends State<MenuViewScreen> {
                     ),
                   ],
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                  onPressed: () {
-                    // Logic để thêm vào giỏ hàng (Phần của bạn khác trong nhóm)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Đã chọn: ${product.productName}')),
-                    );
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () => _removeFromCart(product),
+                    ),
+                    Text('${_cart[product.productID]?['quantity'] ?? 0}'),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                      onPressed: () => _addToCart(product),
+                    ),
+                  ],
                 ),
               ),
             );

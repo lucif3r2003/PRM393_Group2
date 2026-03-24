@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
 import 'package:project/view/user_detail_screen.dart';
 
@@ -59,6 +60,15 @@ class _UserListScreenState extends State<UserListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AuthSession.hasAnyRole(['Admin'])) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Quản lý người dùng')),
+        body: const Center(
+          child: Text('Bạn không có quyền truy cập màn hình này.'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quản lý người dùng'),

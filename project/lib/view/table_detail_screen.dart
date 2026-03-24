@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:project/entity/table.dart' as entity;
 import 'package:project/repository/database_helper.dart';
+import 'package:project/view/menu_view_screen.dart';
 
 class TableDetailScreen extends StatefulWidget {
   final entity.Table table;
-  const TableDetailScreen({super.key, required this.table});
+  final int waiterId;
+  final String waiterName;
+
+  const TableDetailScreen({
+    super.key,
+    required this.table,
+    required this.waiterId,
+    required this.waiterName,
+  });
 
   @override
   State<TableDetailScreen> createState() => _TableDetailScreenState();
@@ -19,7 +28,6 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
     currentStatus = widget.table.status;
   }
 
-  // Hàm xử lý đổi trạng thái bàn nhanh
   void _updateStatus(String newStatus) async {
     await DatabaseHelper.instance.updateTableStatus(
       widget.table.tableId!,
@@ -75,23 +83,31 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // Nút Gọi món (Chỉ demo, bạn có thể nối vào màn hình Order sau)
                 _buildActionButton(
-                  icon: Icons.add_shopping_cart,
-                  label: "Gọi món / Thêm món",
+                  icon: Icons.local_drink,
+                  label: "Drink Detail",
                   color: Colors.blue,
-                  onTap: () => _updateStatus('Occupied'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MenuViewScreen(
+                          tableId: widget.table.tableId!,
+                          tableName: widget.table.tableName,
+                          waiterId: widget.waiterId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
 
-                // Nút Thanh toán
                 _buildActionButton(
                   icon: Icons.payments_outlined,
-                  label: "Thanh toán & Trả bàn",
+                  label: "Đánh dấu bàn trống",
                   color: Colors.green,
                   onTap: () => _updateStatus('Empty'),
                 ),
 
-                // Nút Đặt trước
                 _buildActionButton(
                   icon: Icons.bookmark_outline,
                   label: "Khách đặt trước (Reserved)",
@@ -101,7 +117,6 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
 
                 const Divider(height: 40),
 
-                // Nút Quay lại
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text("Quay lại sơ đồ bàn"),

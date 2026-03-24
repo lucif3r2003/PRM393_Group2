@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
 import 'package:project/view/product_form_screen.dart';
 
@@ -69,6 +70,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AuthSession.hasAnyRole(['Admin'])) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Quản lý sản phẩm')),
+        body: const Center(
+          child: Text('Bạn không có quyền truy cập màn hình này.'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quản lý sản phẩm'),

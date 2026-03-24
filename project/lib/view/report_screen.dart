@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -34,6 +35,15 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AuthSession.hasAnyRole(['Admin'])) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Báo cáo doanh thu (Admin)')),
+        body: const Center(
+          child: Text('Bạn không có quyền truy cập màn hình này.'),
+        ),
+      );
+    }
+
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

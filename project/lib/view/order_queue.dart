@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:project/entity/order_queue_item.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
+import 'package:project/view/login_screen.dart';
 
 class OrderQueueScreen extends StatefulWidget {
   const OrderQueueScreen({super.key});
@@ -11,6 +13,16 @@ class OrderQueueScreen extends StatefulWidget {
 
 //  2. Lớp State quản lý trạng thái của màn hình
 class _OrderQueueScreenState extends State<OrderQueueScreen> {
+  bool get _canUpdateStatus => AuthSession.hasAnyRole(['Admin', 'Bartender']);
+
+  void _logout(BuildContext context) {
+    AuthSession.clear();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -18,6 +30,16 @@ class _OrderQueueScreenState extends State<OrderQueueScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Hàng đợi pha chế (Order Queue)'),
+          actions: [
+            IconButton(
+              onPressed: () => setState(() {}),
+              icon: const Icon(Icons.refresh),
+            ),
+            IconButton(
+              onPressed: () => _logout(context),
+              icon: const Icon(Icons.logout),
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Đang chờ'),
@@ -97,7 +119,7 @@ class _OrderQueueScreenState extends State<OrderQueueScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    if (status != 'Ready') 
+                    if (_canUpdateStatus && status != 'Ready') 
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

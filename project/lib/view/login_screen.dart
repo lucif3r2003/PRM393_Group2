@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:project/repository/auth_session.dart';
 import 'package:project/repository/database_helper.dart';
+import 'package:project/view/admin_home_screen.dart';
 import 'package:project/view/list_table_screen.dart';
+import 'package:project/view/order_queue.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,14 +31,27 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Gọi hàm login từ DatabaseHelper bạn đã viết
       final user = await DatabaseHelper.instance.login(username, password);
 
       if (user != null) {
+        AuthSession.currentUser = user;
         if (!mounted) return;
+
+        Widget nextScreen;
+        if (user.role == 'Admin') {
+          nextScreen = const AdminHomeScreen();
+        } else if (user.role == 'Bartender') {
+          nextScreen = const OrderQueueScreen();
+        } else {
+          nextScreen = TableListScreen(
+            waiterId: user.userId!,
+            waiterName: user.fullName,
+          );
+        }
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const TableListScreen()),
+          MaterialPageRoute(builder: (context) => nextScreen),
         );
       } else {
         if (!mounted) return;
