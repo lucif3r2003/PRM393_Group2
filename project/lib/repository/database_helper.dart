@@ -1,5 +1,7 @@
 import 'package:project/entity/order.dart';
 import 'package:project/entity/order_queue_item.dart';
+import 'package:project/entity/table.dart' as entity;
+import 'package:project/entity/user.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -317,6 +319,38 @@ class DatabaseHelper {
       'Products',
       where: 'ProductID = ?',
       whereArgs: [productId],
+    );
+  }
+
+  // Hàm lấy toàn bộ danh sách bàn
+  Future<List<entity.Table>> getAllTables() async {
+    final db = await instance.database;
+    final result = await db.query('DiningTables');
+    return result.map((json) => entity.Table.fromMap(json)).toList();
+  }
+
+  Future<User?> login(String username, String password) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'Users',
+      where: 'Username = ? AND Password = ?',
+      whereArgs: [username, password],
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Hàm cập nhật trạng thái bàn (Ví dụ: khi khách vào ngồi)
+  Future<int> updateTableStatus(int tableId, String newStatus) async {
+    final db = await instance.database;
+    return await db.update(
+      'DiningTables',
+      {'Status': newStatus},
+      where: 'TableID = ?',
+      whereArgs: [tableId],
     );
   }
 }
