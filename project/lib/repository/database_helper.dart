@@ -24,6 +24,8 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
+    // await deleteDatabase(path); // xoa du lieu thi bo cai comment nay di
+
     // Mở database, nếu chưa có sẽ gọi hàm _createDB
     return await openDatabase(
       path,
@@ -134,6 +136,19 @@ class DatabaseHelper {
     for (var table in sampleTables) {
       await db.insert('DiningTables', table);
     }
+    await db.execute('''
+  INSERT INTO Products (ProductName, Category, Price, Description) VALUES 
+  ('Cà phê Đen', 'Cà phê', 25000, 'Cà phê rang xay nguyên chất đậm đà'),
+  ('Cà phê Sữa', 'Cà phê', 29000, 'Cà phê hòa quyện cùng sữa đặc béo ngậy'),
+  ('Bạc Xỉu', 'Cà phê', 32000, 'Nhiều sữa ít cà phê, hương vị nhẹ nhàng'),
+  ('Cappuccino', 'Cà phê', 45000, 'Cà phê Ý với lớp bọt sữa mịn màng'),
+  ('Trà Đào Cam Sả', 'Trà', 39000, 'Trà thanh mát kết hợp đào và hương sả'),
+  ('Trà Vải', 'Trà', 35000, 'Trà đen cùng trái vải tươi ngọt lịm'),
+  ('Trà Sữa Trân Châu', 'Trà', 40000, 'Trà sữa truyền thống kèm trân châu đen'),
+  ('Bánh Mì Thịt', 'Đồ ăn', 30000, 'Bánh mì giòn kẹp thịt xá xíu và pate'),
+  ('Bánh Croissant', 'Đồ ăn', 25000, 'Bánh sừng bò thơm nức mùi bơ'),
+  ('Hạt Hướng Dương', 'Khác', 15000, 'Món nhâm nhi cùng bạn bè');
+''');
   } // ✅ ĐÂY LÀ DẤU NGOẶC KẾT THÚC CỦA HÀM _createDB. CÁC HÀM TRUY VẤN PHẢI NẰM DƯỚI NÓ!
 
   // =========================================================================
@@ -143,9 +158,7 @@ class DatabaseHelper {
   /// Lấy danh sách Đơn hàng theo Trạng thái (Pending, Preparing, Ready)
   Future<List<OrderQueueItem>> getOrderQueueByStatus(String status) async {
     final db = await instance.database;
-
-    final List<Map<String, dynamic>> orderMaps = await db.rawQuery(
-      '''
+    final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
       SELECT m.*, t.TableName 
       FROM MealOrders m
       JOIN DiningTables t ON m.TableID = t.TableID
@@ -179,9 +192,11 @@ class DatabaseHelper {
         );
       }).toList();
 
-      queueItems.add(
-        OrderQueueItem(order: order, tableName: tableName, details: details),
-      );
+      queueItems.add(OrderQueueItem(
+        order: order,
+        tableName: tableName,
+        details: details,
+      ));
     }
 
     return queueItems;
