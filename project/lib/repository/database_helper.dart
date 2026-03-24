@@ -57,9 +57,8 @@ class DatabaseHelper {
       )
     ''');
 
-    // ✅ SỬA TÊN BẢNG THÀNH DiningTables CHO ĐỒNG BỘ
     await db.execute('''
-      CREATE TABLE DiningTables (
+      CREATE TABLE Tables (
         TableID $idAuto,
         TableName $textType,
         Status $textType
@@ -85,9 +84,8 @@ class DatabaseHelper {
       )
     ''');
 
-    // ✅ SỬA TÊN BẢNG THÀNH MealOrders CHO ĐỒNG BỘ
     await db.execute('''
-      CREATE TABLE MealOrders (
+      CREATE TABLE Orders (
         OrderID $idAuto,
         TableID $intType,
         WaiterID $intType,
@@ -145,7 +143,6 @@ class DatabaseHelper {
   ('Trà Đào Cam Sả', 'Trà', 39000, 'Trà thanh mát kết hợp đào và hương sả'),
   ('Trà Vải', 'Trà', 35000, 'Trà đen cùng trái vải tươi ngọt lịm'),
   ('Trà Sữa Trân Châu', 'Trà', 40000, 'Trà sữa truyền thống kèm trân châu đen'),
-  ('Bánh Mì Thịt', 'Đồ ăn', 30000, 'Bánh mì giòn kẹp thịt xá xíu và pate'),
   ('Bánh Croissant', 'Đồ ăn', 25000, 'Bánh sừng bò thơm nức mùi bơ'),
   ('Hạt Hướng Dương', 'Khác', 15000, 'Món nhâm nhi cùng bạn bè');
 ''');
